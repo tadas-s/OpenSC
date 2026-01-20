@@ -43,14 +43,6 @@ static const struct sc_atr_table lteid_atrs[] = {
 	{ NULL, NULL, NULL, 0, 0, NULL }
 };
 
-static struct {
-	int len;
-	struct sc_object_id oid;
-} lteid_curves[] = {
-	// secp384r1
-	{384, {{1, 3, 132, 0, 34, -1}}}
-};
-
 struct lteid_buff {
 	u8 val[SC_MAX_APDU_RESP_SIZE];
 	size_t len;
@@ -61,7 +53,6 @@ struct lteid_buff {
 		LOG_TEST_RET(card->ctx, sc_transmit_apdu(card, &apdu), "APDU transmit failed"); \
 		LOG_TEST_RET(card->ctx, sc_check_sw(card, apdu.sw1, apdu.sw2), text); \
 	} while (0)
-
 
 static int lteid_match_card(sc_card_t* card) {
 	SC_FUNC_CALLED(card->ctx, SC_LOG_DEBUG_VERBOSE);
@@ -124,12 +115,6 @@ static int lteid_unlock(sc_card_t* card) {
 	LOG_FUNC_RETURN(card->ctx, SC_SUCCESS);
 }
 
-/*! Initializes card driver.
- *
- * Card is known to support only short APDU-s.
- * Preinitialized keys are on secp384r1 curve.
- * PACE channel have to be established.
- */
 static int lteid_init(sc_card_t* card) {
 	SC_FUNC_CALLED(card->ctx, SC_LOG_DEBUG_VERBOSE);
 
@@ -137,14 +122,6 @@ static int lteid_init(sc_card_t* card) {
 
 	card->max_send_size = SC_MAX_APDU_RESP_SIZE;
 	card->max_recv_size = SC_MAX_APDU_RESP_SIZE;
-
-	for (size_t i = 0; i < sizeof lteid_curves / sizeof * lteid_curves; ++i) {
-		LOG_TEST_RET(card->ctx, _sc_card_add_ec_alg(
-			card, lteid_curves[i].len,
-			SC_ALGORITHM_ECDSA_RAW | SC_ALGORITHM_ECDSA_HASH_NONE,
-			0, &lteid_curves[i].oid
-		), "Add EC alg failed");
-	}
 
 	LOG_TEST_RET(card->ctx, sc_enum_apps(card), "Enumerate apps failed");
 
