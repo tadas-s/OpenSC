@@ -123,8 +123,6 @@ static int lteid_init(sc_card_t* card) {
 	card->max_send_size = SC_MAX_APDU_RESP_SIZE;
 	card->max_recv_size = SC_MAX_APDU_RESP_SIZE;
 
-	LOG_TEST_RET(card->ctx, sc_enum_apps(card), "Enumerate apps failed");
-
 	LOG_TEST_RET(card->ctx, lteid_unlock(card), "Unlock card failed");
 
 	LOG_FUNC_RETURN(card->ctx, SC_SUCCESS);
