@@ -48,12 +48,6 @@ struct lteid_buff {
 	size_t len;
 };
 
-#define SC_TRANSMIT_TEST_RET(card, apdu, text) \
-	do { \
-		LOG_TEST_RET(card->ctx, sc_transmit_apdu(card, &apdu), "APDU transmit failed"); \
-		LOG_TEST_RET(card->ctx, sc_check_sw(card, apdu.sw1, apdu.sw2), text); \
-	} while (0)
-
 static int lteid_match_card(sc_card_t* card) {
 	SC_FUNC_CALLED(card->ctx, SC_LOG_DEBUG_VERBOSE);
 	if (_sc_match_atr(card, lteid_atrs, &card->type) >= 0) {
