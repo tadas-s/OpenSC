@@ -125,6 +125,8 @@ static int lteid_init(sc_card_t* card) {
 }
 
 static int lteid_logout(sc_card_t* card) {
+	SC_FUNC_CALLED(card->ctx, SC_LOG_DEBUG_VERBOSE);
+
 	sc_sm_stop(card);
 	return lteid_unlock(card);
 }
