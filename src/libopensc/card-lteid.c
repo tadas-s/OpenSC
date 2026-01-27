@@ -102,6 +102,8 @@ static int lteid_unlock(sc_card_t* card) {
 		LOG_FUNC_RETURN(card->ctx, SC_ERROR_UNKNOWN);
 	}
 
+	// FIXME: This should possibly go to lteid_sm_open. See card-eoi.c for example.
+	// Otherwise, in opensc_explorer it's possible to "sm close", but "sm open" fails with "Not supported".
 	if (SC_SUCCESS != perform_pace(card, pace_input, &pace_output, EAC_TR_VERSION_2_02)) {
 		sc_log(card->ctx, "Error verifying CAN.");
 		LOG_FUNC_RETURN(card->ctx, SC_ERROR_UNKNOWN);
