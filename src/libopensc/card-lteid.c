@@ -29,6 +29,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+static const struct sc_card_operations *iso_ops = NULL;
 static struct sc_card_operations lteid_ops;
 
 static struct sc_card_driver lteid_drv = {
@@ -133,7 +134,12 @@ static int lteid_logout(sc_card_t* card) {
 
 struct sc_card_driver* sc_get_lteid_driver(void)
 {
-	lteid_ops = *sc_get_iso7816_driver()->ops;
+	struct sc_card_driver *iso_drv = sc_get_iso7816_driver();
+
+	if (iso_ops == NULL)
+		iso_ops = iso_drv->ops;
+
+	lteid_ops = *iso_ops;
 	lteid_ops.match_card = lteid_match_card;
 	lteid_ops.init = lteid_init;
 	// lteid_ops.select_file = lteid_select_file;
