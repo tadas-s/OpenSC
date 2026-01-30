@@ -38,7 +38,7 @@ OBJECTS			= \
 	pkcs15-dnie.obj pkcs15-gids.obj pkcs15-iasecc.obj pkcs15-jpki.obj \
 	pkcs15-esteid2018.obj pkcs15-esteid2025.obj pkcs15-idprime.obj pkcs15-nqApplet.obj \
 	pkcs15-starcos-esign.obj pkcs15-skeid.obj pkcs15-eoi.obj pkcs15-dtrust.obj \
-	compression.obj sm.obj aux-data.obj \
+	pkcs15-lteid.obj compression.obj sm.obj aux-data.obj \
 	$(TOPDIR)\win32\versioninfo.res
 LIBS = $(TOPDIR)\src\scconf\scconf.lib \
 	   $(TOPDIR)\src\common\common.lib \
