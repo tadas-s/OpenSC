@@ -37,6 +37,7 @@
 
 // clang-format off
 struct sc_pkcs15_emulator_handler builtin_emulators[] = {
+	{ "lteid",      sc_pkcs15emu_lteid_init_ex },
 	{ "openpgp",	sc_pkcs15emu_openpgp_init_ex	},
 	{ "starcert",	sc_pkcs15emu_starcert_init_ex	},
 	{ "tcos",	sc_pkcs15emu_tcos_init_ex	},
@@ -63,7 +64,6 @@ struct sc_pkcs15_emulator_handler builtin_emulators[] = {
 	{ "esign",      sc_pkcs15emu_starcos_esign_init_ex },
 	{ "eOI",        sc_pkcs15emu_eoi_init_ex },
 	{ "dtrust",     sc_pkcs15emu_dtrust_init_ex },
-	{ "lteid",      sc_pkcs15emu_lteid_init_ex },
 	{ NULL, NULL }
 };
 
