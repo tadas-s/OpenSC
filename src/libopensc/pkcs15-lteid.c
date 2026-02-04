@@ -47,7 +47,7 @@ static int lteid_load_tokeninfo(sc_pkcs15_card_t *p15card) {
             &serial_number, &serial_number_len },
         { "Manufacturer", SC_ASN1_UTF8STRING, SC_ASN1_TAG_UTF8STRING, SC_ASN1_ALLOC,
             &p15card->tokeninfo->manufacturer_id, &unused },
-        { "Label", SC_ASN1_OCTET_STRING, SC_ASN1_CTX, SC_ASN1_ALLOC,  &p15card->tokeninfo->label, &unused },
+        { "Label", SC_ASN1_PRINTABLESTRING, SC_ASN1_CTX, SC_ASN1_ALLOC,  &p15card->tokeninfo->label, &unused },
         { "Card Flags", SC_ASN1_INTEGER, SC_ASN1_TAG_BIT_STRING, 0, NULL, NULL },
         { NULL, 0, 0, 0, NULL, NULL }
     };
