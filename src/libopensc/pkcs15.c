@@ -2535,7 +2535,7 @@ sc_pkcs15_read_file(struct sc_pkcs15_card *p15card, const struct sc_path *in_pat
 				if (file->size)
 					len = (file->size > MAX_FILE_SIZE)? MAX_FILE_SIZE:file->size;
 				else
-					len = 1024;
+					len = 2048;
 				offset = 0;
 			}
 			else {
