@@ -192,13 +192,13 @@ static int sc_pkcs15emu_lteid_init(sc_pkcs15_card_t *p15card, struct sc_aid *aid
         .native = 1,
         .key_reference = 1,
         .field_length = 384, // FIXME: should be picked up from certificate?
-        .usage = SC_PKCS15_PRKEY_USAGE_SIGN | SC_PKCS15_PRKEY_USAGE_DERIVE
+        .usage = SC_PKCS15_PRKEY_USAGE_NONREPUDIATION
     };
 
     struct sc_pkcs15_object signing_prkey_ojb = {
         .label = "Elektroninio parašo raktas",
         .auth_id = { .len = 1, .value = { 1 }},
-        .user_consent = 0, // FIXME: ??...
+        .user_consent = 1, // FIXME: ??...
         .flags = SC_PKCS15_CO_FLAG_PRIVATE
     };
     sc_format_path("3F00DF02", &signing_prkey_info.path);
@@ -238,13 +238,13 @@ static int sc_pkcs15emu_lteid_init(sc_pkcs15_card_t *p15card, struct sc_aid *aid
         .native = 1,
         .key_reference = 2,
         .field_length = 384, // FIXME: should be picked up from certificate?
-        .usage = SC_PKCS15_PRKEY_USAGE_NONREPUDIATION
+        .usage = SC_PKCS15_PRKEY_USAGE_SIGN | SC_PKCS15_PRKEY_USAGE_DERIVE
     };
 
     struct sc_pkcs15_object authentication_prkey_ojb = {
         .label = "Atpažinties raktas",
         .auth_id = { .len = 1, .value = { 1 }},
-        .user_consent = 1, // FIXME: ??...
+        .user_consent = 0, // FIXME: ??...
         .flags = SC_PKCS15_CO_FLAG_PRIVATE
     };
     sc_format_path("3F00DF02", &authentication_prkey_info.path);
