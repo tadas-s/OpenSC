@@ -84,8 +84,6 @@ static int sc_pkcs15emu_lteid_init(sc_pkcs15_card_t *p15card, struct sc_aid *aid
     p15card->tokeninfo->flags = SC_PKCS15_TOKEN_PRN_GENERATION | SC_PKCS15_TOKEN_READONLY;
     lteid_load_tokeninfo(p15card);
 
-    sc_format_path("3F00DF02", &p15card->file_app->path);
-
     /*
      * Signing certificate
      */
@@ -212,6 +210,27 @@ static int sc_pkcs15emu_lteid_init(sc_pkcs15_card_t *p15card, struct sc_aid *aid
     );
 
     /*
+     * Signing public key
+     */
+    struct sc_pkcs15_pubkey_info signing_pubkey_info = {
+        .id = {.len = 1, .value = { 1 }},
+        .key_reference = 1,
+        .native = true,
+    };
+
+    struct sc_pkcs15_object signing_pubkey_obj = {
+        .label = "Elektroninio parašo viešas raktas"
+    };
+
+    sc_format_path("3F00DF021F07", &signing_pubkey_info.path);
+
+    LOG_TEST_RET(
+        p15card->card->ctx,
+        sc_pkcs15emu_add_ec_pubkey(p15card, &signing_pubkey_obj, &signing_pubkey_info),
+        "Could not add public authentication key object"
+    );
+
+    /*
      * Authentication private key
      */
     struct sc_pkcs15_prkey_info authentication_prkey_info = {
@@ -234,6 +253,27 @@ static int sc_pkcs15emu_lteid_init(sc_pkcs15_card_t *p15card, struct sc_aid *aid
         p15card->card->ctx,
         sc_pkcs15emu_add_ec_prkey(p15card, &authentication_prkey_ojb, &authentication_prkey_info),
         "Could not add private key object"
+    );
+
+    /*
+     * Authentication public key
+     */
+    struct sc_pkcs15_pubkey_info authentication_pubkey_info = {
+        .id = {.len = 1, .value = { 2 }},
+        .key_reference = 2,
+        .native = true,
+    };
+
+    struct sc_pkcs15_object authentication_pubkey_obj = {
+        .label = "Atpažinties viešas raktas"
+    };
+
+    sc_format_path("3F00DF021F0B", &authentication_pubkey_info.path);
+
+    LOG_TEST_RET(
+        p15card->card->ctx,
+        sc_pkcs15emu_add_ec_pubkey(p15card, &authentication_pubkey_obj, &authentication_pubkey_info),
+        "Could not add public authentication key object"
     );
 
     LOG_FUNC_RETURN(p15card->card->ctx, SC_SUCCESS);
