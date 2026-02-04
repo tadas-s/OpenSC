@@ -25,22 +25,66 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "common/compat_strlcpy.h"
+#include "asn1.h"
 
 #include "internal.h"
 #include "log.h"
 #include "pkcs15.h"
 
-static int sc_pkcs15emu_lteid_init(sc_pkcs15_card_t * p15card)
-{
-    // FIXME: values below hardcoded for quick test. It should really
-    // be taken from DF02/5032 record.
-    p15card->tokeninfo->version = 1;
-    set_string(&p15card->tokeninfo->label, "First Last Names");
-    set_string(&p15card->tokeninfo->manufacturer_id, "MaskTech GmbH");
-    set_string(&p15card->tokeninfo->serial_number, "D461AB13BDB8D001");
+static int lteid_load_tokeninfo(sc_pkcs15_card_t *p15card) {
+    SC_FUNC_CALLED(p15card->card->ctx, SC_LOG_DEBUG_VERBOSE);
 
+    struct sc_card *card = p15card->card;
+    struct sc_path path;
+    struct sc_file *file = NULL;
+    u8 buf[SC_MAX_APDU_DATA_SIZE];
+    u8 *serial_number;
+    size_t serial_number_len, unused;
+
+    struct sc_asn1_entry cia_info_attrs[6] = {
+        { "Version", SC_ASN1_INTEGER, SC_ASN1_TAG_INTEGER, 0, &p15card->tokeninfo->version, NULL },
+        { "Serial Number", SC_ASN1_OCTET_STRING, SC_ASN1_TAG_OCTET_STRING, SC_ASN1_ALLOC,
+            &serial_number, &serial_number_len },
+        { "Manufacturer", SC_ASN1_UTF8STRING, SC_ASN1_TAG_UTF8STRING, SC_ASN1_ALLOC,
+            &p15card->tokeninfo->manufacturer_id, &unused },
+        { "Label", SC_ASN1_OCTET_STRING, SC_ASN1_CTX, SC_ASN1_ALLOC,  &p15card->tokeninfo->label, &unused },
+        { "Card Flags", SC_ASN1_INTEGER, SC_ASN1_TAG_BIT_STRING, 0, NULL, NULL },
+        { NULL, 0, 0, 0, NULL, NULL }
+    };
+
+    struct sc_asn1_entry cia_info[2] = {
+        { "EF.CIAInfo", SC_ASN1_STRUCT, SC_ASN1_CONS | SC_ASN1_SEQUENCE, 0, &cia_info_attrs, NULL },
+        { NULL, 0, 0, 0, NULL, NULL }
+    };
+
+    sc_format_path("3F00DF025032", &path);
+    sc_select_file(card, &path, &file);
+
+    int bytes_read_or_err = sc_read_binary(card, 0, buf, sizeof(buf), 0);
+
+    if (bytes_read_or_err < 0) {
+        LOG_FUNC_RETURN(card->ctx, SC_ERROR_WRONG_CARD); // FIXME: more sensible error ?
+    }
+
+    int rv = sc_asn1_decode(card->ctx, cia_info, buf, bytes_read_or_err, NULL, NULL);
+
+    LOG_TEST_RET(card->ctx, rv, "EF.CIAInfo decode error");
+
+    // Format serial number as hex string
+    p15card->tokeninfo->serial_number = calloc(serial_number_len * 2 + 1, sizeof(char));
+    for (size_t i = 0; i < serial_number_len; i++) {
+        snprintf(p15card->tokeninfo->serial_number + i * 2, 3, "%X", serial_number[i]);
+    }
+
+    LOG_FUNC_RETURN(card->ctx, SC_SUCCESS);
+}
+
+static int sc_pkcs15emu_lteid_init(sc_pkcs15_card_t *p15card, struct sc_aid *aid)
+{
     p15card->tokeninfo->flags = SC_PKCS15_TOKEN_PRN_GENERATION | SC_PKCS15_TOKEN_READONLY;
+    lteid_load_tokeninfo(p15card);
+
+    sc_format_path("3F00DF02", &p15card->file_app->path);
 
     /*
      * Signing certificate
@@ -173,7 +217,7 @@ static int sc_pkcs15emu_lteid_init(sc_pkcs15_card_t * p15card)
     struct sc_pkcs15_prkey_info authentication_prkey_info = {
         .id = {.len = 1, .value = { 2 }},
         .native = 1,
-        .key_reference = 1,
+        .key_reference = 2,
         .field_length = 384, // FIXME: should be picked up from certificate?
         .usage = SC_PKCS15_PRKEY_USAGE_NONREPUDIATION
     };
@@ -198,7 +242,7 @@ static int sc_pkcs15emu_lteid_init(sc_pkcs15_card_t * p15card)
 int sc_pkcs15emu_lteid_init_ex(sc_pkcs15_card_t *p15card, struct sc_aid *aid)
 {
     if (p15card->card->type == SC_CARD_TYPE_LTEID)
-        return sc_pkcs15emu_lteid_init(p15card);
+        return sc_pkcs15emu_lteid_init(p15card, aid);
 
     return SC_ERROR_WRONG_CARD;
 }
