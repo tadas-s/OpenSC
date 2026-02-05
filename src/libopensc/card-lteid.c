@@ -117,8 +117,9 @@ static int lteid_init(sc_card_t* card) {
 
 	memset(&card->sm_ctx, 0, sizeof card->sm_ctx);
 
-	card->max_send_size = SC_MAX_APDU_RESP_SIZE;
-	card->max_recv_size = SC_MAX_APDU_RESP_SIZE;
+	card->max_send_size = 65535;
+	card->max_recv_size = 65535;
+	card->caps |= SC_CARD_CAP_ISO7816_PIN_INFO | SC_CARD_CAP_APDU_EXT;
 
 	LOG_TEST_RET(card->ctx, sc_enum_apps(card), "Enumerate apps failed");
 
