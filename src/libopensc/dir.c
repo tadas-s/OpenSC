@@ -192,7 +192,8 @@ int sc_enum_apps(sc_card_t *card)
 		size_t bufsize;
 
 		if (file_size == 0)
-			LOG_FUNC_RETURN(ctx, 0);
+			file_size = 2048; /* Some cards do not report size - just try reading it anyway */
+
 		if (file_size > MAX_FILE_SIZE)
 			LOG_FUNC_RETURN(ctx, SC_ERROR_INVALID_DATA);
 

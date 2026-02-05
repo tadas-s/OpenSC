@@ -1065,8 +1065,7 @@ sc_pkcs15_bind_internal(struct sc_pkcs15_card *p15card, struct sc_aid *aid)
 
 	len = p15card->file_odf->size;
 	if (!len) {
-		sc_log(ctx, "EF(ODF) is empty");
-		goto end;
+		len = 2048; /* Some cards do not report size - just try reading it anyway */
 	}
 	if (len > MAX_FILE_SIZE) {
 		sc_log(ctx, "EF(ODF) too large");
@@ -1139,8 +1138,7 @@ sc_pkcs15_bind_internal(struct sc_pkcs15_card *p15card, struct sc_aid *aid)
 
 	len = p15card->file_tokeninfo->size;
 	if (!len) {
-		sc_log(ctx, "EF(TokenInfo) is empty");
-		goto end;
+		len = 2048; /* Some cards do not report size - just try reading it anyway */
 	}
 	if (len > MAX_FILE_SIZE) {
 		sc_log(ctx, "EF(TokenInfo) too large");
