@@ -117,6 +117,7 @@ static const struct _sc_driver_entry internal_card_drivers[] = {
 	{ "tcos",	(void *(*)(void)) sc_get_tcos_driver },
 #ifdef ENABLE_OPENSSL
 	{ "oberthur",	(void *(*)(void)) sc_get_oberthur_driver },
+	{ "lteid", (void *(*)(void)) sc_get_lteid_driver },
 	{ "authentic",	(void *(*)(void)) sc_get_authentic_driver },
 	{ "iasecc",	(void *(*)(void)) sc_get_iasecc_driver },
 #endif
@@ -138,8 +139,6 @@ static const struct _sc_driver_entry internal_card_drivers[] = {
 #if defined(ENABLE_SM) && defined(ENABLE_OPENPACE)
 	{ "edo",        (void *(*)(void)) sc_get_edo_driver },
 #endif
-	{ "lteid", (void *(*)(void)) sc_get_lteid_driver },
-
 
 /* Here should be placed drivers that need some APDU transactions in the
  * driver's `match_card()` function. */
