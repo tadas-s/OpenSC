@@ -24,7 +24,6 @@
 #include "libopensc/opensc.h"
 #include "libopensc/pace.h"
 #include "libopensc/sm.h"
-#include "libopensc/asn1.h"
 #include "sm/sm-eac.h"
 #include <string.h>
 #include <stdlib.h>
