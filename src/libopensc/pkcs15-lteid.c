@@ -25,11 +25,54 @@
 #include "internal.h"
 #include "pkcs15.h"
 
+static int lteid_parse_df(struct sc_pkcs15_card *p15card, struct sc_pkcs15_df *df)
+{
+    struct sc_context *ctx = p15card->card->ctx;
+    struct sc_pkcs15_object *pkobjs[32];
+    int rv, count;
+
+    LOG_FUNC_CALLED(ctx);
+
+    if (!df)
+        LOG_FUNC_RETURN(ctx, SC_ERROR_INVALID_ARGUMENTS);
+
+    if (df->enumerated)
+        LOG_FUNC_RETURN(ctx, SC_SUCCESS);
+
+    rv = sc_pkcs15_parse_df(p15card, df);
+    LOG_TEST_RET(ctx, rv, "DF parse error");
+
+    if (df->type != SC_PKCS15_PRKDF)
+        LOG_FUNC_RETURN(ctx, SC_SUCCESS);
+
+    rv = sc_pkcs15_get_objects(p15card, SC_PKCS15_TYPE_PRKEY, pkobjs, sizeof(pkobjs) / sizeof(pkobjs[0]));
+    LOG_TEST_RET(ctx, rv, "Cannot get PRKEY objects list");
+
+    count = rv;
+    for (int i = 0; i < count; i++) {
+        struct sc_pkcs15_prkey_info *prkey_info = (struct sc_pkcs15_prkey_info *) pkobjs[i]->data;
+        prkey_info->field_length = 384;
+    }
+
+    LOG_FUNC_RETURN(ctx, SC_SUCCESS);
+}
+
+static int sc_pkcs15emu_lteid_init(struct sc_pkcs15_card *p15card, struct sc_aid *aid) {
+    struct sc_context *ctx = p15card->card->ctx;
+    int rv;
+
+    LOG_FUNC_CALLED(ctx);
+
+    rv = sc_pkcs15_bind_internal(p15card, aid);
+    p15card->ops.parse_df = lteid_parse_df;
+
+    LOG_FUNC_RETURN(ctx, rv);
+}
+
 int sc_pkcs15emu_lteid_init_ex(sc_pkcs15_card_t *p15card, struct sc_aid *aid)
 {
     if (p15card->card->type == SC_CARD_TYPE_LTEID)
-        // return sc_pkcs15emu_lteid_init(p15card, aid);
-        return SC_SUCCESS;
+        return sc_pkcs15emu_lteid_init(p15card, aid);
 
     return SC_ERROR_WRONG_CARD;
 }

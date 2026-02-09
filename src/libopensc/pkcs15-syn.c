@@ -127,6 +127,7 @@ int sc_pkcs15_is_emulation_only(sc_card_t *card)
 		case SC_CARD_TYPE_DTRUST_V5_1_MULTI:
 		case SC_CARD_TYPE_DTRUST_V5_1_M100:
 		case SC_CARD_TYPE_DTRUST_V5_4_MULTI:
+		case SC_CARD_TYPE_LTEID:
 			return 1;
 		default:
 			return 0;
