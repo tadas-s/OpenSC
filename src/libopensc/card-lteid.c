@@ -93,7 +93,6 @@ static int lteid_get_can(sc_card_t* card, struct establish_pace_channel_input* p
 	LOG_FUNC_RETURN(card->ctx, SC_SUCCESS);
 }
 
-// Mostly taken from `dtrust_perform_pace`
 static int lteid_perform_pace(struct sc_card *card, const int ref, const unsigned char *pin, size_t pinlen, int *tries_left) {
 	SC_FUNC_CALLED(card->ctx, SC_LOG_DEBUG_VERBOSE);
 
@@ -132,7 +131,6 @@ static int lteid_perform_pace(struct sc_card *card, const int ref, const unsigne
 static int lteid_unlock(sc_card_t* card) {
 	SC_FUNC_CALLED(card->ctx, SC_LOG_DEBUG_VERBOSE);
 
-	// if (SC_SUCCESS != lteid_perform_pace(card, PACE_PIN_ID_PIN, NULL, 0, NULL)) {
 	if (SC_SUCCESS != lteid_perform_pace(card, PACE_PIN_ID_CAN, NULL, 0, NULL)) {
 		LOG_FUNC_RETURN(card->ctx, SC_ERROR_UNKNOWN);
 	}
@@ -157,6 +155,11 @@ static int lteid_init(sc_card_t* card) {
 	card->max_send_size = 65535;
 	card->max_recv_size = 65535;
 	card->caps |= SC_CARD_CAP_ISO7816_PIN_INFO | SC_CARD_CAP_APDU_EXT;
+
+	// From esteid2025 ... Based on logs looking for CKM_ECDSA "mechanism" (?)
+	unsigned long flags = SC_ALGORITHM_ECDSA_RAW | SC_ALGORITHM_ECDH_CDH_RAW | SC_ALGORITHM_ECDSA_HASH_NONE;
+	unsigned long ext_flags = SC_ALGORITHM_EXT_EC_NAMEDCURVE | SC_ALGORITHM_EXT_EC_UNCOMPRESES;
+	_sc_card_add_ec_alg(card, 384, flags, ext_flags, NULL);
 
 	LOG_TEST_RET(card->ctx, sc_enum_apps(card), "Enumerate apps failed");
 
@@ -188,10 +191,10 @@ static int lteid_pin_cmd(struct sc_card *card, struct sc_pin_cmd_data *data, int
 	}
 	sc_log(card->ctx, "================================================");
 
-	// FIXME: Limit to PACE pin references only?.. There's the 0x81 pin which is not PACE pin.
-	if (data->cmd == SC_PIN_CMD_VERIFY) {
+	// Authentication key refers to PACE PIN -> 0x3
+	// Meanwhile, signing key refers to PIN.QES -> 0x81. This pin is verifiable via regular iso7816 cmd verify call.
+	if (data->cmd == SC_PIN_CMD_VERIFY && (data->pin_reference == PACE_PIN_ID_PIN)) {
 		rv = lteid_perform_pace(card, data->pin_reference, data->pin1.data, data->pin1.len, tries_left);
-
 		LOG_FUNC_RETURN(card->ctx, rv);
 	}
 
@@ -204,6 +207,8 @@ static int lteid_pin_cmd(struct sc_card *card, struct sc_pin_cmd_data *data, int
 		// Log in via Firefox PKCS11 module dialog works with this. Not sure yet how to log out.
 		data->pin1.logged_in = (drv_data->pace_pin_ref == data->pin_reference);
 
+		// FIXME: use eac_pace_get_tries_left ?...
+
 		LOG_FUNC_RETURN(card->ctx, SC_SUCCESS);
 	}
 
@@ -213,17 +218,41 @@ static int lteid_pin_cmd(struct sc_card *card, struct sc_pin_cmd_data *data, int
 }
 
 static int lteid_set_security_env(struct sc_card *card, const struct sc_security_env *env, int se_num) {
-	SC_FUNC_CALLED(card->ctx, SC_LOG_DEBUG_VERBOSE);
+	struct sc_apdu apdu;
+	u8 cse_crt_sig[] = {0x84, 0x01, 0x00};
+	u8 cse_crt_der[] = {0x84, 0x01, 0x00};
 
-	int rv = iso_ops->set_security_env(card, env, se_num);
+	LOG_FUNC_CALLED(card->ctx);
 
-	LOG_FUNC_RETURN(card->ctx, rv);
+	if (env == NULL || env->key_ref_len != 1)
+		LOG_FUNC_RETURN(card->ctx, SC_ERROR_INTERNAL);
+
+	sc_log(card->ctx, "algo: %lu operation: %d keyref: %d", env->algorithm, env->operation, env->key_ref[0]);
+
+	if (env->algorithm == SC_ALGORITHM_EC && env->operation == SC_SEC_OPERATION_SIGN) {
+		cse_crt_sig[sizeof(cse_crt_sig) - 1] = env->key_ref[0];
+		sc_format_apdu_ex(&apdu, 0x00, 0x22, 0x41, 0xB6, cse_crt_sig, sizeof(cse_crt_sig), NULL, 0);
+	} else if (env->algorithm == SC_ALGORITHM_EC && env->operation == SC_SEC_OPERATION_DERIVE) {
+		cse_crt_der[sizeof(cse_crt_der) - 1] = env->key_ref[0];
+		sc_format_apdu_ex(&apdu, 0x00, 0x22, 0x41, 0xB8, cse_crt_der, sizeof(cse_crt_der), NULL, 0);
+	} else {
+		LOG_FUNC_RETURN(card->ctx, SC_ERROR_NOT_SUPPORTED);
+	}
+
+	LOG_TEST_RET(card->ctx, sc_transmit_apdu(card, &apdu), "APDU transmit failed");
+	LOG_TEST_RET(card->ctx, sc_check_sw(card, apdu.sw1, apdu.sw2), "SET SECURITY ENV failed");
+
+	LOG_FUNC_RETURN(card->ctx, SC_SUCCESS);
 }
 
 static int lteid_compute_signature(struct sc_card *card, const u8 * data, size_t data_len, u8 * out, size_t outlen) {
 	SC_FUNC_CALLED(card->ctx, SC_LOG_DEBUG_VERBOSE);
 
-	int rv = iso_ops->compute_signature(card, data, data_len, out, outlen);
+	// Usual signature return size is 96.
+	if (outlen < 96)
+		LOG_FUNC_RETURN(card->ctx, SC_ERROR_INTERNAL);
+
+	int rv = iso_ops->compute_signature(card, data, data_len, out, 96);
 
 	LOG_FUNC_RETURN(card->ctx, rv);
 }
@@ -238,7 +267,6 @@ struct sc_card_driver* sc_get_lteid_driver(void)
 	lteid_ops = *iso_ops;
 	lteid_ops.match_card = lteid_match_card;
 	lteid_ops.init = lteid_init;
-	// lteid_ops.select_file = lteid_select_file;
 	lteid_ops.set_security_env = lteid_set_security_env;
 	lteid_ops.compute_signature = lteid_compute_signature;
 	lteid_ops.pin_cmd = lteid_pin_cmd;
