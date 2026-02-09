@@ -257,6 +257,24 @@ static int lteid_compute_signature(struct sc_card *card, const u8 * data, size_t
 	LOG_FUNC_RETURN(card->ctx, rv);
 }
 
+static int lteid_process_fci(struct sc_card *card, struct sc_file *file, const u8 *buf, size_t buflen) {
+	SC_FUNC_CALLED(card->ctx, SC_LOG_DEBUG_VERBOSE);
+
+	int rv = iso_ops->process_fci(card, file, buf, buflen);
+
+	if (rv != SC_SUCCESS) {
+		LOG_FUNC_RETURN(card->ctx, rv);
+	}
+
+	// Card does not report most of the file sizes. So if it's zero -
+	// set to something large enough for any of the pkcs15 related files.
+	if (file->size == 0) {
+		file->size = 2048;
+	}
+
+	LOG_FUNC_RETURN(card->ctx, SC_SUCCESS);
+}
+
 struct sc_card_driver* sc_get_lteid_driver(void)
 {
 	struct sc_card_driver *iso_drv = sc_get_iso7816_driver();
@@ -271,6 +289,7 @@ struct sc_card_driver* sc_get_lteid_driver(void)
 	lteid_ops.compute_signature = lteid_compute_signature;
 	lteid_ops.pin_cmd = lteid_pin_cmd;
 	lteid_ops.logout = lteid_logout;
+	lteid_ops.process_fci = lteid_process_fci;
 
 	return &lteid_drv;
 }
