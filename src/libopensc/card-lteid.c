@@ -109,10 +109,10 @@ static int lteid_perform_pace(struct sc_card *card, const int ref, const unsigne
 		pace_input.pin_length = pinlen;
 	}
 
-	// FIXME: figure out error handling for incorrect pin. Otherwise connection is irrecoverably broken.
-	if (SC_SUCCESS != perform_pace(card, pace_input, &pace_output, EAC_TR_VERSION_2_02)) {
+	const int rv = perform_pace(card, pace_input, &pace_output, EAC_TR_VERSION_2_02);
+	if (rv != SC_SUCCESS) {
 		sc_log(card->ctx, "Error performing PACE for pin ref 0x%02x.", ref);
-		LOG_FUNC_RETURN(card->ctx, SC_ERROR_UNKNOWN);
+		LOG_FUNC_RETURN(card->ctx, rv);
 	}
 
 	// Track PACE status
