@@ -49,11 +49,6 @@ static const struct sc_atr_table lteid_atrs[] = {
 	{ NULL, NULL, NULL, 0, 0, NULL }
 };
 
-struct lteid_buff {
-	u8 val[SC_MAX_APDU_RESP_SIZE];
-	size_t len;
-};
-
 static int lteid_match_card(sc_card_t* card) {
 	SC_FUNC_CALLED(card->ctx, SC_LOG_DEBUG_VERBOSE);
 	if (_sc_match_atr(card, lteid_atrs, &card->type) >= 0) {
