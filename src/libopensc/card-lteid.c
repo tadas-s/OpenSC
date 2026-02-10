@@ -212,11 +212,9 @@ static int lteid_pin_cmd(struct sc_card *card, struct sc_pin_cmd_data *data, int
 }
 
 static int lteid_set_security_env(struct sc_card *card, const struct sc_security_env *env, int se_num) {
-	struct sc_apdu apdu;
-	u8 cse_crt_sig[] = {0x84, 0x01, 0x00};
-	u8 cse_crt_der[] = {0x84, 0x01, 0x00};
-
 	LOG_FUNC_CALLED(card->ctx);
+
+	struct sc_apdu apdu;
 
 	if (env == NULL || env->key_ref_len != 1)
 		LOG_FUNC_RETURN(card->ctx, SC_ERROR_INTERNAL);
@@ -224,11 +222,8 @@ static int lteid_set_security_env(struct sc_card *card, const struct sc_security
 	sc_log(card->ctx, "algo: %lu operation: %d keyref: %d", env->algorithm, env->operation, env->key_ref[0]);
 
 	if (env->algorithm == SC_ALGORITHM_EC && env->operation == SC_SEC_OPERATION_SIGN) {
-		cse_crt_sig[sizeof(cse_crt_sig) - 1] = env->key_ref[0];
-		sc_format_apdu_ex(&apdu, 0x00, 0x22, 0x41, 0xB6, cse_crt_sig, sizeof(cse_crt_sig), NULL, 0);
-	} else if (env->algorithm == SC_ALGORITHM_EC && env->operation == SC_SEC_OPERATION_DERIVE) {
-		cse_crt_der[sizeof(cse_crt_der) - 1] = env->key_ref[0];
-		sc_format_apdu_ex(&apdu, 0x00, 0x22, 0x41, 0xB8, cse_crt_der, sizeof(cse_crt_der), NULL, 0);
+		const u8 data[] = {0x84, 0x01, env->key_ref[0]};
+		sc_format_apdu_ex(&apdu, 0x00, 0x22, 0x41, 0xB6, data, sizeof(data), NULL, 0);
 	} else {
 		LOG_FUNC_RETURN(card->ctx, SC_ERROR_NOT_SUPPORTED);
 	}
