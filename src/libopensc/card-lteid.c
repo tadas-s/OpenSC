@@ -237,11 +237,13 @@ static int lteid_set_security_env(struct sc_card *card, const struct sc_security
 static int lteid_compute_signature(struct sc_card *card, const u8 * data, size_t data_len, u8 * out, size_t outlen) {
 	SC_FUNC_CALLED(card->ctx, SC_LOG_DEBUG_VERBOSE);
 
-	// Usual signature return size is 96.
+	// Usually this is called with 104 bytes buffer. But we expect card to return 96 byte hash.
 	if (outlen < 96)
-		LOG_FUNC_RETURN(card->ctx, SC_ERROR_INTERNAL);
+		LOG_FUNC_RETURN(card->ctx, SC_ERROR_BUFFER_TOO_SMALL);
 
-	int rv = iso_ops->compute_signature(card, data, data_len, out, 96);
+	memset(out, 0, outlen);
+
+	const int rv = iso_ops->compute_signature(card, data, data_len, out, 96);
 
 	LOG_FUNC_RETURN(card->ctx, rv);
 }
