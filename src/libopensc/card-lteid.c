@@ -28,6 +28,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "asn1.h"
+
 static const struct sc_card_operations *iso_ops = NULL;
 static struct sc_card_operations lteid_ops;
 
@@ -176,15 +178,6 @@ static int lteid_pin_cmd(struct sc_card *card, struct sc_pin_cmd_data *data, int
 	struct lteid_drv_data *drv_data = card->drv_data;
 	int rv;
 
-	sc_log(card->ctx, "== lteid_pin_cmd ===============================");
-	sc_log(card->ctx, "PIN cmd: %i", data->cmd);
-	sc_log(card->ctx, "PIN reference: %i", data->pin_reference);
-	sc_log(card->ctx, "PIN type: %i", data->pin_type);
-	if (data->pin1.data != NULL && data->pin1.len == 6) {
-		sc_log(card->ctx, "PIN: '%.6s'", data->pin1.data);
-	}
-	sc_log(card->ctx, "================================================");
-
 	// Authentication key refers to PACE PIN -> 0x3
 	// Meanwhile, signing key refers to PIN.QES -> 0x81. This pin is verifiable via regular iso7816 cmd verify call.
 	if (data->cmd == SC_PIN_CMD_VERIFY && (data->pin_reference == PACE_PIN_ID_PIN)) {
@@ -192,20 +185,55 @@ static int lteid_pin_cmd(struct sc_card *card, struct sc_pin_cmd_data *data, int
 		LOG_FUNC_RETURN(card->ctx, rv);
 	}
 
-	if (data->cmd == SC_PIN_CMD_GET_INFO) {
-		// For now just pretend we got the information
-		// *tries_left = 3;
-		data->pin1.max_tries = 3;
-		data->pin1.tries_left = 3;
+	// PACE CAN code info: there's ACE2 file, but it does not contain any info about max or remaining attempts.
+	if (data->cmd == SC_PIN_CMD_GET_INFO && (data->pin_reference == PACE_PIN_ID_CAN)) {
+		data->pin1.max_tries = -1;
+		data->pin1.tries_left = -1;
+		if (tries_left) { *tries_left = -1; }
+	}
+
+	// PACE PIN and PUK codes: max and remaining attempts are stored in ACE3 and ACE4 files.
+	if (data->cmd == SC_PIN_CMD_GET_INFO && (data->pin_reference == PACE_PIN_ID_PIN || data->pin_reference == PACE_PIN_ID_PUK)) {
+		struct sc_apdu apdu;
+		unsigned char buf[0xbe] = {0};
+		u8 id[] = {0xac, 0x00};
+		size_t taglen = 0;
+
+		switch (data->pin_reference) {
+			case PACE_PIN_ID_PIN: id[1] = 0xe3; break;
+			case PACE_PIN_ID_PUK: id[1] = 0xe4; break;
+			default: break;
+		}
+
+		// FIXME: is not not something out of standard iso7816 api?
+		sc_format_apdu_ex(&apdu, 0x00, 0xa4, 0x00, 0x04, id, sizeof(id), buf, sizeof(buf));
+
+		LOG_TEST_RET(card->ctx, sc_transmit_apdu(card, &apdu), "APDU transmit failed");
+
+		// FIXME: is there a better way to fetch deeply nested bit of data?
+		const u8 *tag = sc_asn1_find_tag(card->ctx, buf, sizeof(buf), 0x62, &taglen);
+		tag = sc_asn1_find_tag(card->ctx, tag, taglen, 0xa5, &taglen);
+		tag = sc_asn1_find_tag(card->ctx, tag, taglen, 0xa2, &taglen);
+		tag = sc_asn1_find_tag(card->ctx, tag, taglen, 0xa3, &taglen);
+		tag = sc_asn1_find_tag(card->ctx, tag, taglen, 0x82, &taglen);
+
+		if (tag && taglen == 2) {
+			data->pin1.tries_left = tag[0];
+			data->pin1.max_tries = tag[1];
+
+			if (tries_left) { *tries_left = data->pin1.tries_left; }
+		} else {
+			LOG_FUNC_RETURN(card->ctx, SC_ERROR_OBJECT_NOT_FOUND);
+		}
 
 		// Log in via Firefox PKCS11 module dialog works with this. Not sure yet how to log out.
 		data->pin1.logged_in = (drv_data->pace_pin_ref == data->pin_reference);
 
-		// FIXME: use eac_pace_get_tries_left ?...
-
 		LOG_FUNC_RETURN(card->ctx, SC_SUCCESS);
 	}
 
+	// Any other commands - fall back to regular iso7816 methods.
+	// Mostly for PIN.QES(ID 0x81) which is a regular pin.
 	rv = iso_ops->pin_cmd(card, data, tries_left);
 
 	LOG_FUNC_RETURN(card->ctx, rv);
